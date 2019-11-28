@@ -54,7 +54,7 @@ module.exports = class DataAdapter {
         conversation_group_id,
         conversation_handle,
         message_sequence_number,
-        message_body, 
+        CAST(message_body AS VARCHAR(MAX)) as message_body,
         message_type_id,
         message_type_name,
         priority,

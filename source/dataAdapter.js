@@ -12,8 +12,9 @@ module.exports = class DataAdapter {
 
   _connect () {
     const { server, user, password, database, encrypt = false } = this._config
-
-    const connection = new Connection({
+    let connection
+    try {
+    connection = new Connection({
       server,
       userName: user,
       password,
@@ -23,8 +24,13 @@ module.exports = class DataAdapter {
         ...driverSettings
       }
     })
+  } catch(e) {
+    connection = null
+  }
 
     return new Promise((resolve, reject) => {
+
+      if (!connection) return reject('err')
       connection.on('connect', err => {
         if (err) {
           reject(err)
@@ -40,6 +46,7 @@ module.exports = class DataAdapter {
     return this._connect().then(connection => {
       this._connection = connection
     })
+    .catch(err => console.log('Connection Error!!'))
   }
 
   receive ({ count = 1, timeout = 5000 } = {}) {
@@ -52,7 +59,7 @@ module.exports = class DataAdapter {
     const query = `WAITFOR (  
       RECEIVE TOP (@count)
         conversation_group_id,
-        conversation_handle,
+        conversation_handle,                                                                                                                          
         message_sequence_number,
         CAST(message_body AS VARCHAR(MAX)) as message_body,
         message_type_id,

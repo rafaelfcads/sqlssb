@@ -2,20 +2,24 @@ const EventEmitter = require('events')
 const DataAdapter = require('./dataAdapter')
 
 module.exports = class Sqlssb extends EventEmitter {
-  constructor (config) {
+  constructor(config) {
     super()
     const { adapter: CustomAdapter } = config
     this._dataAdapter = new (CustomAdapter || DataAdapter)(config)
   }
 
-  get isActive () {
+  get isActive() {
     return this._isActive
   }
 
-  async _listen (options) {
+  async _listen(options) {
     do {
-      const response = await this._dataAdapter.receive(options)
-
+      let response
+      try {
+        response = await this._dataAdapter.receive(options)
+      } catch (e) {
+        console.log('Retry Connection!!!')
+      }
       if (!response) {
         continue
       }
@@ -25,7 +29,7 @@ module.exports = class Sqlssb extends EventEmitter {
     } while (this.isActive)
   }
 
-  async start (options = {}) {
+  async start(options = {}) {
     const connected = this._dataAdapter.connect()
 
     connected.then(() => {
@@ -38,7 +42,7 @@ module.exports = class Sqlssb extends EventEmitter {
     return connected
   }
 
-  createContext (response) {
+  createContext(response) {
     const {
       service_name: serviceName,
       conversation_handle: conversationId
@@ -62,11 +66,11 @@ module.exports = class Sqlssb extends EventEmitter {
     }
   }
 
-  send (args) {
+  send(args) {
     return this._dataAdapter.send(args)
   }
 
-  stop () {
+  stop() {
     this._dataAdapter.stop()
     this._isActive = false
   }

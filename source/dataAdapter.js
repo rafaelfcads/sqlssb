@@ -9,25 +9,26 @@ module.exports = class DataAdapter {
   constructor (config) {
     this._config = config
   }
-
+  get isConnection() {
+    return this._isConnection
+  }
   _connect () {
     const { server, user, password, database, encrypt = false } = this._config
     let connection
     try {
-    connection = new Connection({
-      server,
-      userName: user,
-      password,
-      options: {
-        encrypt,
-        database,
-        ...driverSettings
-      }
-    })
+        connection = new Connection({
+          server,
+          userName: user,
+          password,
+          options: {
+            encrypt,
+            database,
+            ...driverSettings
+          }
+        })
   } catch(e) {
     connection = null
   }
-
     return new Promise((resolve, reject) => {
 
       if (!connection) return reject('err')
@@ -36,23 +37,36 @@ module.exports = class DataAdapter {
           reject(err)
           return
         }
-
         resolve(connection)
       })
+
+      connection.on('end', () => { 
+          console.log('try reconect!')
+          setTimeout(() => this.obj.start(this.options),10000)
+          
+      });
     })
   }
+  
 
-  connect () {
-    return this._connect().then(connection => {
-      this._connection = connection
-    })
-    .catch(err => console.log('Connection Error!!'))
+  async connect (obj,options) {
+      this.obj=obj
+      this.options=options
+      try{
+        this._connection =  await this._connect()
+        
+      }catch(err){
+        console.log('Error to try connection ')
+      }
+      return this._connection
   }
 
   receive ({ count = 1, timeout = 5000 } = {}) {
+
     if (!this._connection) {
       throw new Error('No connection')
     }
+
 
     const { queue } = this._config
 
@@ -76,30 +90,40 @@ module.exports = class DataAdapter {
     ), TIMEOUT @timeout`
 
     return new Promise((resolve, reject) => {
-      const request = new Request(query, (err, rowCount, [rows]) => {
-        if (err) {
-          reject(err)
-          return
+        try{          
+          
+          const request = new Request(query, (err, rowCount, rows) => {
+            
+            let [arrRows] = rows != undefined ? rows : []
+             
+            if (err) {
+              reject(err)
+              return
+            }
+            
+            if (!arrRows) {
+              resolve()
+              return
+            }
+
+            const response = arrRows.reduce((acc, current) => {
+              const key = current.metadata.colName
+              acc[key] = current.value
+              return acc
+            }, {})
+  
+            response.message_body = response.message_body.toString()
+            resolve(response)
+          })
+          
+          request.addParameter('count', TYPES.Int, count)
+          request.addParameter('timeout', TYPES.Int, timeout)
+          this._connection.execSql(request)
+
+        }catch(error){
+          console.log('dataAdapter error')
         }
-
-        if (!rows) {
-          resolve()
-          return
-        }
-
-        const response = rows.reduce((acc, current) => {
-          const key = current.metadata.colName
-          acc[key] = current.value
-          return acc
-        }, {})
-
-        response.message_body = response.message_body.toString()
-        resolve(response)
-      })
-
-      request.addParameter('count', TYPES.Int, count)
-      request.addParameter('timeout', TYPES.Int, timeout)
-      this._connection.execSql(request)
+        
     })
   }
 

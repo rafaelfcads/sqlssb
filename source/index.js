@@ -17,8 +17,9 @@ module.exports = class Sqlssb extends EventEmitter {
       let response
       try {
         response = await this._dataAdapter.receive(options)
+        
       } catch (e) {
-        console.log('Retry Connection!!!')
+        this._isActive=false
       }
       if (!response) {
         continue
@@ -30,16 +31,11 @@ module.exports = class Sqlssb extends EventEmitter {
   }
 
   async start(options = {}) {
-    const connected = this._dataAdapter.connect()
-
-    connected.then(() => {
+    
+      const connected = await this._dataAdapter.connect(this,options)
       this._isActive = true
       this._listen(options)
-    }).catch(err => {
-      console.error(err)
-    })
-
-    return connected
+      return connected
   }
 
   createContext(response) {

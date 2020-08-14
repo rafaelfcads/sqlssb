@@ -16,8 +16,8 @@ module.exports = class Sqlssb extends EventEmitter {
     do {
       let response
       try {
-        const sleep = require('util').promisify(setTimeout)
-        await sleep(500)
+        //const sleep = require('util').promisify(setTimeout)
+        //await sleep(500)
         response = await this._dataAdapter.receive(options)  
       } catch (e) {
         this._isActive=false
